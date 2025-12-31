@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="语音速记 - 按住说话，松手保存">
+
+    <title>VoiceNotes 语音速记</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- 主页面 -->
+        <main id="home-view" class="view active">
+            <!-- 顶部导航 -->
+            <header class="header">
+                <h1 class="logo">
+                    <span class="logo-icon">🎙️</span>
+                    VoiceNotes
+                </h1>
+                <button id="theme-toggle" class="icon-btn" aria-label="切换主题">
+                    <svg class="icon sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <path
+                            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42">
+                        </path>
+                    </svg>
+                    <svg class="icon moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </header>
+
+            <!-- 实时转写区 -->
+            <div id="transcription-area" class="transcription-area hidden">
+                <div class="transcription-content">
+                    <span id="transcription-text"></span>
+                    <span class="cursor"></span>
+                </div>
+                <div class="recording-timer">
+                    <span class="recording-dot"></span>
+                    <span id="timer">00:00</span>
+                </div>
+            </div>
+
+            <!-- iOS 手动输入框 -->
+            <div id="ios-input-area" class="ios-input-area hidden">
+                <textarea id="ios-textarea" class="ios-textarea" placeholder="iOS 不支持语音识别，请输入或使用系统语音输入..."
+                    rows="3"></textarea>
+                <div class="ios-input-actions">
+                    <button id="ios-cancel" class="ios-btn secondary">取消</button>
+                    <button id="ios-save" class="ios-btn primary">保存</button>
+                </div>
+                <p class="ios-hint">💡 提示：点击键盘上的 🎤 可使用系统语音输入</p>
+            </div>
+
+
+            <!-- 录音按钮区 -->
+            <div class="record-section">
+                <div id="ripple-container" class="ripple-container"></div>
+                <button id="record-btn" class="record-btn" aria-label="按住说话">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                        <path
+                            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                    </svg>
+                    <span class="record-text">按住说话</span>
+                </button>
+                <p class="record-hint">松手自动保存</p>
+            </div>
+
+            <!-- 保存成功提示 -->
+            <div id="save-toast" class="save-toast hidden">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>已保存</span>
+            </div>
+
+            <!-- 笔记列表 -->
+            <section class="notes-section">
+                <div class="notes-header">
+                    <h2>📝 历史记录</h2>
+                    <span id="notes-count" class="notes-count">0 条</span>
+                </div>
+                <div id="notes-list" class="notes-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">🎤</div>
+                        <p>还没有笔记</p>
+                        <p class="empty-hint">按住上方按钮开始录音</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 笔记详情页 -->
+        <div id="detail-view" class="view">
+            <header class="header detail-header">
+                <button id="back-btn" class="icon-btn" aria-label="返回">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <div class="detail-title">
+                    <span id="detail-date"></span>
+                </div>
+                <button id="delete-btn" class="icon-btn delete" aria-label="删除">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </header>
+
+            <div class="detail-content">
+                <div id="note-content" class="note-content" contenteditable="true"></div>
+            </div>
+
+            <!-- 追加录音按钮 -->
+            <div class="append-section">
+                <button id="append-btn" class="append-btn" aria-label="追加录音">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                        <path
+                            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                    </svg>
+                    <span>按住追加</span>
+                </button>
+            </div>
+
+            <!-- 追加转写区 -->
+            <div id="append-transcription" class="transcription-area append-transcription hidden">
+                <div class="transcription-content">
+                    <span id="append-text"></span>
+                    <span class="cursor"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认对话框 -->
+    <div id="delete-dialog" class="dialog-overlay hidden">
+        <div class="dialog">
+            <h3>确认删除</h3>
+            <p>删除后无法恢复，确定要删除这条笔记吗？</p>
+            <div class="dialog-actions">
+                <button id="cancel-delete" class="dialog-btn secondary">取消</button>
+                <button id="confirm-delete" class="dialog-btn danger">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>
