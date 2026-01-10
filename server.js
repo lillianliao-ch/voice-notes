@@ -104,7 +104,7 @@ function callQwenASR(audioBase64, format) {
                                 audio: `data:${mimeType};base64,${audioBase64}`
                             },
                             {
-                                text: '请识别这段语音并转换为文字'
+                                text: '语音转写:'
                             }
                         ]
                     }
@@ -147,6 +147,12 @@ function callQwenASR(audioBase64, format) {
                         } else if (typeof content === 'string') {
                             text = content;
                         }
+                        // 去掉模型可能添加的前缀
+                        text = text.replace(/^这段语音的原始内容是[:：]\s*/i, '')
+                            .replace(/^语音转写[:：]\s*/i, '')
+                            .replace(/^语音内容[:：]\s*/i, '')
+                            .replace(/^['"'](.*)['"']$/s, '$1')
+                            .trim();
                         resolve({
                             text: text.trim(),
                             success: true
