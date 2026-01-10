@@ -1,5 +1,5 @@
 // 更新版本号以强制刷新缓存
-const CACHE_NAME = 'voicenotes-v4';
+const CACHE_NAME = 'voicenotes-v5';
 const ASSETS = [
     '/',
     '/index.html',

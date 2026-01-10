@@ -1,26 +1,99 @@
 const express = require('express');
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'voicenotes123';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const TOKEN_EXPIRY_DAYS = 30;
+
+// 生成 token
+function generateToken() {
+    const payload = {
+        exp: Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+        random: crypto.randomBytes(16).toString('hex')
+    };
+    const data = JSON.stringify(payload);
+    const signature = crypto.createHmac('sha256', JWT_SECRET).update(data).digest('hex');
+    return Buffer.from(data).toString('base64') + '.' + signature;
+}
+
+// 验证 token
+function verifyToken(token) {
+    try {
+        const [dataBase64, signature] = token.split('.');
+        const data = Buffer.from(dataBase64, 'base64').toString();
+        const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(data).digest('hex');
+        if (signature !== expectedSig) return false;
+        const payload = JSON.parse(data);
+        return payload.exp > Date.now();
+    } catch {
+        return false;
+    }
+}
 
 // 中间件
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, '.')));
 
 // CORS
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
     next();
 });
+
+// 登录 API
+app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    if (password === ADMIN_PASSWORD) {
+        const token = generateToken();
+        res.json({ success: true, token });
+    } else {
+        res.status(401).json({ success: false, error: 'Invalid password' });
+    }
+});
+
+// 验证 token API
+app.post('/api/verify', (req, res) => {
+    const { token } = req.body;
+    const valid = verifyToken(token);
+    res.json({ valid });
+});
+
+// 认证中间件 - 保护 API 和静态资源
+app.use((req, res, next) => {
+    // 登录相关不需要认证
+    if (req.path === '/api/login' || req.path === '/api/verify') {
+        return next();
+    }
+
+    // 检查 Authorization header 或 cookie
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (token && verifyToken(token)) {
+        return next();
+    }
+
+    // 如果是 API 请求，返回 401
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // 静态资源请求交给后续处理
+    next();
+});
+
+// 静态文件服务
+app.use(express.static(path.join(__dirname, '.')));
 
 // 调试端点
 app.get('/api/debug', async (req, res) => {

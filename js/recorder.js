@@ -122,10 +122,12 @@ class VoiceRecorder {
             console.log('Base64 audio length:', base64Audio.length);
 
             // 发送到后端 API
+            const token = localStorage.getItem('voicenotes_auth_token');
             const response = await fetch('/api/transcribe', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     audio: base64Audio,

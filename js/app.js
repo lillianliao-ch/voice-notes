@@ -4,6 +4,61 @@
 import { initDB, createNote, getAllNotes, getNoteById, updateNote, appendToNote, deleteNote } from './db.js';
 import VoiceRecorder from './recorder.js';
 
+// 认证管理
+const AUTH_TOKEN_KEY = 'voicenotes_auth_token';
+
+function getAuthToken() {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function setAuthToken(token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+function clearAuthToken() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+async function verifyToken(token) {
+    try {
+        const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+        });
+        const data = await response.json();
+        return data.valid;
+    } catch {
+        return false;
+    }
+}
+
+async function login(password) {
+    const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+    });
+    const data = await response.json();
+    if (data.success && data.token) {
+        setAuthToken(data.token);
+        return true;
+    }
+    return false;
+}
+
+// 获取带认证的 fetch 函数
+function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${token}`
+        }
+    });
+}
+
 class VoiceNotesApp {
     constructor() {
         this.currentNoteId = null;
@@ -16,10 +71,51 @@ class VoiceNotesApp {
 
     async init() {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.setup());
+            document.addEventListener('DOMContentLoaded', () => this.checkAuthAndSetup());
         } else {
-            await this.setup();
+            await this.checkAuthAndSetup();
         }
+    }
+
+    async checkAuthAndSetup() {
+        const loginView = document.getElementById('login-view');
+        const appView = document.getElementById('app');
+        const token = getAuthToken();
+
+        if (token && await verifyToken(token)) {
+            // 已登录
+            loginView.classList.add('hidden');
+            appView.classList.remove('hidden');
+            await this.setup();
+        } else {
+            // 未登录，显示登录界面
+            clearAuthToken();
+            loginView.classList.remove('hidden');
+            appView.classList.add('hidden');
+            this.setupLoginForm();
+        }
+    }
+
+    setupLoginForm() {
+        const form = document.getElementById('login-form');
+        const passwordInput = document.getElementById('login-password');
+        const errorEl = document.getElementById('login-error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = passwordInput.value;
+
+            if (await login(password)) {
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                await this.setup();
+            } else {
+                errorEl.classList.remove('hidden');
+                passwordInput.value = '';
+                passwordInput.focus();
+                setTimeout(() => errorEl.classList.add('hidden'), 3000);
+            }
+        });
     }
 
     async setup() {
