@@ -80,7 +80,7 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Qwen ASR 调用
+// Qwen Audio Turbo ASR 调用 (切换自 qwen-audio-asr 以使用不同配额)
 function callQwenASR(audioBase64, format) {
     return new Promise((resolve, reject) => {
         const mimeTypes = {
@@ -92,8 +92,9 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
+        // 使用 qwen-audio-turbo 模型
         const requestBody = {
-            model: 'qwen-audio-asr',
+            model: 'qwen-audio-turbo-1204',
             input: {
                 messages: [
                     {
@@ -101,6 +102,9 @@ function callQwenASR(audioBase64, format) {
                         content: [
                             {
                                 audio: `data:${mimeType};base64,${audioBase64}`
+                            },
+                            {
+                                text: '请识别这段语音并转换为文字'
                             }
                         ]
                     }
@@ -110,6 +114,7 @@ function callQwenASR(audioBase64, format) {
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
+        console.log('Using model: qwen-audio-turbo-1204');
 
         const options = {
             hostname: 'dashscope.aliyuncs.com',
@@ -121,7 +126,7 @@ function callQwenASR(audioBase64, format) {
                 'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
                 'Content-Length': Buffer.byteLength(postData)
             },
-            timeout: 25000
+            timeout: 30000
         };
 
         const request = https.request(options, (response) => {
