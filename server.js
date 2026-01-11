@@ -472,7 +472,7 @@ function testApiKey() {
 }
 
 // 调用千问文本模型生成纪要
-const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-turbo';
+const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-plus-2025-07-28';
 
 // 模型参数配置
 const MODEL_PARAMS = {
