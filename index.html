@@ -140,18 +140,38 @@
 
             <div class="detail-content">
                 <div id="note-content" class="note-content" contenteditable="true"></div>
+
+                <!-- 纪要区域 -->
+                <div id="summary-section" class="summary-section hidden">
+                    <div class="summary-header">
+                        <span class="summary-icon">📋</span>
+                        <span>智能纪要</span>
+                    </div>
+                    <div id="summary-content" class="summary-content"></div>
+                </div>
             </div>
 
-            <!-- 追加录音按钮 -->
+            <!-- 底部操作区 -->
             <div class="append-section">
-                <button id="append-btn" class="append-btn" aria-label="追加录音">
-                    <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                        <path
-                            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
-                    </svg>
-                    <span>按住追加</span>
-                </button>
+                <div class="action-buttons">
+                    <button id="summarize-btn" class="action-btn summarize-btn" aria-label="生成纪要">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        <span>生成纪要</span>
+                    </button>
+                    <button id="append-btn" class="action-btn append-btn" aria-label="追加录音">
+                        <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                            <path
+                                d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                        </svg>
+                        <span>按住追加</span>
+                    </button>
+                </div>
             </div>
 
             <!-- 追加转写区 -->

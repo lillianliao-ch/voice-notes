@@ -170,6 +170,9 @@ class VoiceNotesApp {
             iosTextarea: document.getElementById('ios-textarea'),
             iosCancel: document.getElementById('ios-cancel'),
             iosSave: document.getElementById('ios-save'),
+            summarizeBtn: document.getElementById('summarize-btn'),
+            summarySection: document.getElementById('summary-section'),
+            summaryContent: document.getElementById('summary-content'),
         };
     }
 
@@ -252,6 +255,11 @@ class VoiceNotesApp {
         this.elements.deleteDialog.addEventListener('click', (e) => {
             if (e.target === this.elements.deleteDialog) this.hideDeleteDialog();
         });
+
+        // 生成纪要按钮
+        if (this.elements.summarizeBtn) {
+            this.elements.summarizeBtn.addEventListener('click', () => this.generateSummary());
+        }
     }
 
     bindRecordButton(button, isAppend) {
@@ -420,7 +428,64 @@ class VoiceNotesApp {
         this.currentNoteId = null;
         this.elements.detailView.classList.remove('active');
         this.elements.homeView.classList.add('active');
+        // 隐藏纪要区域
+        if (this.elements.summarySection) {
+            this.elements.summarySection.classList.add('hidden');
+        }
         await this.loadNotes();
+    }
+
+    async generateSummary() {
+        if (!this.currentNoteId) return;
+
+        const content = this.elements.noteContent.innerText.trim();
+        if (!content) {
+            alert('笔记内容为空');
+            return;
+        }
+
+        const btn = this.elements.summarizeBtn;
+        const originalText = btn.querySelector('span').textContent;
+
+        try {
+            // 显示加载状态
+            btn.classList.add('loading');
+            btn.querySelector('span').textContent = '生成中...';
+
+            const token = localStorage.getItem('voicenotes_auth_token');
+            const response = await fetch('/api/summarize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ content })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.summary) {
+                // 显示纪要
+                this.elements.summaryContent.textContent = result.summary;
+                this.elements.summarySection.classList.remove('hidden');
+
+                // 保存纪要到笔记（追加到末尾）
+                const note = await getNoteById(this.currentNoteId);
+                if (note && !note.content.includes('【智能纪要】')) {
+                    const newContent = note.content + '\n\n【智能纪要】\n' + result.summary;
+                    await updateNote(this.currentNoteId, newContent);
+                    this.elements.noteContent.innerHTML = this.formatNoteContent(newContent);
+                }
+            } else {
+                alert('生成纪要失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('Generate summary failed:', error);
+            alert('生成纪要失败，请重试');
+        } finally {
+            btn.classList.remove('loading');
+            btn.querySelector('span').textContent = originalText;
+        }
     }
 
     async saveNoteContent() {

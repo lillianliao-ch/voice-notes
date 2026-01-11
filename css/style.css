@@ -660,6 +660,88 @@ body {
     z-index: 50;
 }
 
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.action-btn {
+    flex: 1;
+    height: 50px;
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all var(--transition-fast);
+}
+
+.action-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.action-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+}
+
+.action-btn:active {
+    transform: scale(0.98);
+}
+
+.action-btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.summarize-btn:hover {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+/* Summary Section */
+.summary-section {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--accent-bg);
+    border-radius: 16px;
+    border-left: 4px solid var(--accent);
+}
+
+.summary-section.hidden {
+    display: none;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 12px;
+}
+
+.summary-icon {
+    font-size: 1.2rem;
+}
+
+.summary-content {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
 /* ================================
    Dialog
    ================================ */

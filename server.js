@@ -148,6 +148,54 @@ app.post('/api/transcribe', async (req, res) => {
     }
 });
 
+// 可配置的 Prompt
+const SUMMARIZE_PROMPT = process.env.SUMMARIZE_PROMPT || `请将以下语音笔记内容整理成条理清晰的纪要，包含：
+1. 主要内容概述
+2. 关键要点（用 bullet points）
+3. 待办事项（如有提及）
+
+注意：直接输出纪要内容，不要添加额外的解释。
+
+原始内容：
+{content}`;
+
+// 纪要生成 API
+app.post('/api/summarize', async (req, res) => {
+    if (!DASHSCOPE_API_KEY) {
+        return res.status(500).json({
+            error: 'API key not configured',
+            success: false
+        });
+    }
+
+    try {
+        const { content } = req.body;
+
+        if (!content || content.trim().length === 0) {
+            return res.status(400).json({
+                error: 'No content provided',
+                success: false
+            });
+        }
+
+        console.log('Summarizing content length:', content.length);
+
+        const prompt = SUMMARIZE_PROMPT.replace('{content}', content);
+        const summary = await callQwenText(prompt);
+
+        res.json({
+            summary: summary,
+            success: true
+        });
+    } catch (error) {
+        console.error('Summarize Error:', error);
+        res.status(500).json({
+            error: error.message,
+            success: false
+        });
+    }
+});
+
 // 默认路由 - 返回 index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -177,7 +225,7 @@ function callQwenASR(audioBase64, format) {
                                 audio: `data:${mimeType};base64,${audioBase64}`
                             },
                             {
-                                text: '语音转写:'
+                                text: '请将这段语音准确转写为文字，直接输出转写内容，不要添加任何前缀或说明。'
                             }
                         ]
                     }
@@ -221,8 +269,10 @@ function callQwenASR(audioBase64, format) {
                             text = content;
                         }
                         // 去掉模型可能添加的前缀
-                        text = text.replace(/^这段语音的原始内容是[:：]\s*/i, '')
-                            .replace(/^语音转写[:：]\s*/i, '')
+                        text = text.replace(/^这段音频的原始内容是[:：]\s*/gi, '')
+                            .replace(/^这段语音的原始内容是[:：]\s*/gi, '')
+                            .replace(/^语音转写的内容是[:：]\s*/gi, '')
+                            .replace(/^语音转写[:：]\s*/gi, '')
                             .replace(/^语音内容[:：]\s*/i, '')
                             .replace(/^['"'](.*)['"']$/s, '$1')
                             .trim();
@@ -318,6 +368,75 @@ function testApiKey() {
 
         request.on('error', reject);
         request.write(testBody);
+        request.end();
+    });
+}
+
+// 调用千问文本模型生成纪要
+const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-turbo';
+
+function callQwenText(prompt) {
+    return new Promise((resolve, reject) => {
+        const requestBody = {
+            model: QWEN_TEXT_MODEL,
+            input: {
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ]
+            }
+        };
+
+        const postData = JSON.stringify(requestBody);
+        console.log('Calling Qwen text model:', QWEN_TEXT_MODEL);
+
+        const options = {
+            hostname: 'dashscope.aliyuncs.com',
+            port: 443,
+            path: '/api/v1/services/aigc/text-generation/generation',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
+                'Content-Length': Buffer.byteLength(postData)
+            },
+            timeout: 30000
+        };
+
+        const request = https.request(options, (response) => {
+            let data = '';
+
+            response.on('data', chunk => data += chunk);
+
+            response.on('end', () => {
+                console.log('Text model response:', data.substring(0, 300));
+                try {
+                    const result = JSON.parse(data);
+
+                    if (result.output && result.output.text) {
+                        resolve(result.output.text.trim());
+                    } else if (result.output && result.output.choices && result.output.choices[0]) {
+                        resolve(result.output.choices[0].message.content.trim());
+                    } else if (result.code || result.message) {
+                        reject(new Error(result.message || result.code));
+                    } else {
+                        reject(new Error('Unknown response format'));
+                    }
+                } catch (e) {
+                    reject(new Error('Parse error: ' + e.message));
+                }
+            });
+        });
+
+        request.on('error', reject);
+        request.on('timeout', () => {
+            request.destroy();
+            reject(new Error('Request timeout'));
+        });
+
+        request.write(postData);
         request.end();
     });
 }
