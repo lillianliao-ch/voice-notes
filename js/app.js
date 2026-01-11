@@ -1,7 +1,7 @@
 /**
  * VoiceNotes 主应用逻辑 - 使用后端 API 转写
  */
-import { initDB, createNote, getAllNotes, getNoteById, updateNote, appendToNote, deleteNote } from './db.js';
+import { initDB, createNote, getAllNotes, getNoteById, updateNote, appendToNote, deleteNote, hasLocalNotes, migrateLocalNotes, clearLocalNotes } from './db.js';
 import VoiceRecorder from './recorder.js';
 
 // 认证管理
@@ -140,6 +140,32 @@ class VoiceNotesApp {
         this.loadTheme();
         await this.loadNotes();
         this.registerServiceWorker();
+
+        // 检查是否有本地笔记需要迁移
+        await this.checkMigration();
+    }
+
+    async checkMigration() {
+        try {
+            const hasLocal = await hasLocalNotes();
+            if (hasLocal) {
+                const migrate = confirm('检测到本地有笔记数据，是否同步到云端？\n\n同步后，您可以在任何设备上访问这些笔记。');
+                if (migrate) {
+                    const result = await migrateLocalNotes();
+                    alert(result.message);
+
+                    const clearLocal = confirm('是否清除本地数据？（推荐，以避免重复同步）');
+                    if (clearLocal) {
+                        await clearLocalNotes();
+                    }
+
+                    // 重新加载笔记
+                    await this.loadNotes();
+                }
+            }
+        } catch (error) {
+            console.error('Migration check failed:', error);
+        }
     }
 
     cacheElements() {

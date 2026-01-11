@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -10,6 +11,40 @@ const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'voicenotes123';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const TOKEN_EXPIRY_DAYS = 30;
+
+// PostgreSQL 连接池
+const DATABASE_URL = process.env.DATABASE_URL;
+let pool = null;
+
+async function initDatabase() {
+    if (!DATABASE_URL) {
+        console.log('⚠️ DATABASE_URL not configured, notes will not be synced');
+        return;
+    }
+
+    pool = new Pool({
+        connectionString: DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+    });
+
+    try {
+        // 创建笔记表
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS notes (
+                id VARCHAR(50) PRIMARY KEY,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log('✅ Database initialized');
+    } catch (error) {
+        console.error('❌ Database init failed:', error.message);
+    }
+}
+
+// 启动时初始化数据库
+initDatabase();
 
 // 生成 token
 function generateToken() {
@@ -293,6 +328,126 @@ app.post('/api/summarize', async (req, res) => {
             success: false
         });
     }
+});
+
+// ========== 笔记 CRUD API ==========
+
+// 检查数据库是否可用
+function checkDatabase(res) {
+    if (!pool) {
+        res.status(503).json({ error: 'Database not configured', success: false });
+        return false;
+    }
+    return true;
+}
+
+// 获取所有笔记
+app.get('/api/notes', async (req, res) => {
+    if (!checkDatabase(res)) return;
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM notes ORDER BY updated_at DESC'
+        );
+        res.json({ notes: result.rows, success: true });
+    } catch (error) {
+        console.error('Get notes error:', error);
+        res.status(500).json({ error: error.message, success: false });
+    }
+});
+
+// 创建笔记
+app.post('/api/notes', async (req, res) => {
+    if (!checkDatabase(res)) return;
+
+    try {
+        const { id, content, createdAt, updatedAt } = req.body;
+        const noteId = id || crypto.randomBytes(8).toString('hex');
+
+        await pool.query(
+            `INSERT INTO notes (id, content, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (id) DO UPDATE SET content = $2, updated_at = $4`,
+            [noteId, content, createdAt || new Date(), updatedAt || new Date()]
+        );
+
+        res.json({ id: noteId, success: true });
+    } catch (error) {
+        console.error('Create note error:', error);
+        res.status(500).json({ error: error.message, success: false });
+    }
+});
+
+// 更新笔记
+app.put('/api/notes/:id', async (req, res) => {
+    if (!checkDatabase(res)) return;
+
+    try {
+        const { id } = req.params;
+        const { content } = req.body;
+
+        await pool.query(
+            'UPDATE notes SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [content, id]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Update note error:', error);
+        res.status(500).json({ error: error.message, success: false });
+    }
+});
+
+// 删除笔记
+app.delete('/api/notes/:id', async (req, res) => {
+    if (!checkDatabase(res)) return;
+
+    try {
+        const { id } = req.params;
+        await pool.query('DELETE FROM notes WHERE id = $1', [id]);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete note error:', error);
+        res.status(500).json({ error: error.message, success: false });
+    }
+});
+
+// 批量迁移本地笔记
+app.post('/api/notes/migrate', async (req, res) => {
+    if (!checkDatabase(res)) return;
+
+    try {
+        const { notes } = req.body;
+
+        if (!Array.isArray(notes)) {
+            return res.status(400).json({ error: 'Invalid notes array', success: false });
+        }
+
+        let migrated = 0;
+        for (const note of notes) {
+            await pool.query(
+                `INSERT INTO notes (id, content, created_at, updated_at) 
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (id) DO NOTHING`,
+                [note.id, note.content, note.createdAt, note.updatedAt]
+            );
+            migrated++;
+        }
+
+        console.log(`Migrated ${migrated} notes`);
+        res.json({ migrated, success: true });
+    } catch (error) {
+        console.error('Migrate notes error:', error);
+        res.status(500).json({ error: error.message, success: false });
+    }
+});
+
+// 检查数据库状态
+app.get('/api/notes/status', (req, res) => {
+    res.json({
+        databaseConfigured: !!pool,
+        databaseUrl: DATABASE_URL ? 'configured' : 'not configured'
+    });
 });
 
 // 默认路由 - 返回 index.html
