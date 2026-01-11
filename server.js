@@ -257,11 +257,7 @@ const SUMMARIZE_PROMPT = process.env.SUMMARIZE_PROMPT || `你是我的「日终�
 【补充约束】
 - 如果原文中没有明确提到某一模块内容，请明确写"今天未重点涉及"
 - 不允许为了"完整"而编造内容
-- 宁可少写，也不要多写
-
-现在开始处理以下原始内容：
-
-{content}`;
+- 宁可少写，也不要多写`;
 
 // 纪要生成 API
 app.post('/api/summarize', async (req, res) => {
@@ -284,8 +280,7 @@ app.post('/api/summarize', async (req, res) => {
 
         console.log('Summarizing content length:', content.length);
 
-        const prompt = SUMMARIZE_PROMPT.replace('{content}', content);
-        const summary = await callQwenText(prompt);
+        const summary = await callQwenText(SUMMARIZE_PROMPT, content);
 
         res.json({
             summary: summary,
@@ -479,17 +474,32 @@ function testApiKey() {
 // 调用千问文本模型生成纪要
 const QWEN_TEXT_MODEL = process.env.QWEN_TEXT_MODEL || 'qwen-turbo';
 
-function callQwenText(prompt) {
+// 模型参数配置
+const MODEL_PARAMS = {
+    temperature: parseFloat(process.env.MODEL_TEMPERATURE) || 0.4,
+    top_p: parseFloat(process.env.MODEL_TOP_P) || 0.8
+};
+
+function callQwenText(systemPrompt, userContent) {
     return new Promise((resolve, reject) => {
         const requestBody = {
             model: QWEN_TEXT_MODEL,
             input: {
                 messages: [
                     {
+                        role: 'system',
+                        content: systemPrompt
+                    },
+                    {
                         role: 'user',
-                        content: prompt
+                        content: userContent
                     }
                 ]
+            },
+            parameters: {
+                temperature: MODEL_PARAMS.temperature,
+                top_p: MODEL_PARAMS.top_p,
+                result_format: 'message'
             }
         };
 
