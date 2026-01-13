@@ -671,7 +671,7 @@ function callQwenText(systemPrompt, userContent) {
                 'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
                 'Content-Length': Buffer.byteLength(postData)
             },
-            timeout: 30000
+            timeout: 90000  // 90秒，处理长内容
         };
 
         const request = https.request(options, (response) => {
