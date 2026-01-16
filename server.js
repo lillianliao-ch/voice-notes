@@ -467,9 +467,9 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 使用 qwen-audio-turbo 模型
+        // 使用 paraformer-realtime-v2 模型（更稳定）
         const requestBody = {
-            model: 'qwen-audio-turbo-1204',
+            model: 'paraformer-realtime-v2',
             input: {
                 messages: [
                     {
@@ -489,7 +489,7 @@ function callQwenASR(audioBase64, format) {
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
-        console.log('Using model: qwen-audio-turbo-1204');
+        console.log('Using model: paraformer-realtime-v2');
 
         const options = {
             hostname: 'dashscope.aliyuncs.com',
