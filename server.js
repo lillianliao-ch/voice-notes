@@ -458,6 +458,7 @@ app.get('*', (req, res) => {
 
 // 智谱 AI GLM-ASR 语音识别调用
 // 文档: https://docs.bigmodel.cn/cn/guide/models/sound-and-video/glm-asr-2512
+// 使用 chat.completions 端点，在消息中传递音频
 function callQwenASR(audioBase64, format) {
     return new Promise((resolve, reject) => {
         const mimeTypes = {
@@ -469,11 +470,23 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 使用智谱 AI GLM-ASR 模型
+        // 使用智谱 AI 的 chat.completions API
         const requestBody = {
             model: 'glm-asr',
-            audio: `data:${mimeType};base64,${audioBase64}`,
-            format: format
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'audio',
+                            audio: {
+                                data: `data:${mimeType};base64,${audioBase64}`
+                            }
+                        }
+                    ]
+                }
+            ],
+            stream: false
         };
 
         const postData = JSON.stringify(requestBody);
@@ -483,7 +496,7 @@ function callQwenASR(audioBase64, format) {
         const options = {
             hostname: 'open.bigmodel.cn',
             port: 443,
-            path: '/api/paas/v4/audio/transcriptions',
+            path: '/api/paas/v4/chat/completions',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -504,9 +517,10 @@ function callQwenASR(audioBase64, format) {
                     const result = JSON.parse(data);
 
                     // 智谱 AI 返回格式
-                    if (result.text) {
+                    if (result.choices && result.choices[0] && result.choices[0].message) {
+                        const content = result.choices[0].message.content;
                         resolve({
-                            text: result.text.trim(),
+                            text: content.trim(),
                             success: true
                         });
                     } else if (result.error) {
