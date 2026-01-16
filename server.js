@@ -467,9 +467,9 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 使用 qwen-audio-turbo 模型（已购买）
+        // 使用 qwen-audio-asr 模型（纯语音识别，不是语音问答）
         const requestBody = {
-            model: 'qwen-audio-turbo',
+            model: 'qwen-audio-asr',
             input: {
                 messages: [
                     {
@@ -486,7 +486,7 @@ function callQwenASR(audioBase64, format) {
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
-        console.log('Using model: qwen-audio-turbo');
+        console.log('Using model: qwen-audio-asr');
 
         const options = {
             hostname: 'dashscope.aliyuncs.com',
