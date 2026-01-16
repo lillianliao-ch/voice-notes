@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
-const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY || '564493d8934944cc898bc699b8be112d.I9LUGyqHsZ2l0v21';
+const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'voicenotes123';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const TOKEN_EXPIRY_DAYS = 30;
