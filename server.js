@@ -467,9 +467,10 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 使用 qwen-audio-asr 模型（纯语音识别，不是语音问答）
+        // 尝试使用 qwen-audio-asr，如果失败可能是权限问题
+        // 已知可用模型：fun-asr, paraformer-v1, paraformer-v2
         const requestBody = {
-            model: 'qwen-audio-asr',
+            model: 'paraformer-v1',
             input: {
                 messages: [
                     {
@@ -486,7 +487,7 @@ function callQwenASR(audioBase64, format) {
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
-        console.log('Using model: qwen-audio-asr');
+        console.log('Using model: paraformer-v1');
 
         const options = {
             hostname: 'dashscope.aliyuncs.com',
