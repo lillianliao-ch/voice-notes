@@ -467,9 +467,9 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 使用 paraformer-realtime-v2 模型（更稳定）
+        // 使用 qwen-audio-turbo 模型（已购买）
         const requestBody = {
-            model: 'paraformer-realtime-v2',
+            model: 'qwen-audio-turbo',
             input: {
                 messages: [
                     {
@@ -477,9 +477,6 @@ function callQwenASR(audioBase64, format) {
                         content: [
                             {
                                 audio: `data:${mimeType};base64,${audioBase64}`
-                            },
-                            {
-                                text: '请将这段语音准确转写为文字，直接输出转写内容，不要添加任何前缀或说明。'
                             }
                         ]
                     }
@@ -489,7 +486,7 @@ function callQwenASR(audioBase64, format) {
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
-        console.log('Using model: paraformer-realtime-v2');
+        console.log('Using model: qwen-audio-turbo');
 
         const options = {
             hostname: 'dashscope.aliyuncs.com',
