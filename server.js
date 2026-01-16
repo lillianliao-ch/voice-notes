@@ -456,9 +456,9 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 智谱 AI GLM-ASR 语音识别调用
-// 文档: https://docs.bigmodel.cn/cn/guide/models/sound-and-video/glm-asr-2512
-// 使用 chat.completions 端点，在消息中传递音频
+// 阿里云 Qwen3-ASR-Flash 语音识别调用
+// 文档: https://help.aliyun.com/zh/model-studio/qwen-asr-api-reference
+// 使用 DashScope multimodal-generation API
 function callQwenASR(audioBase64, format) {
     return new Promise((resolve, reject) => {
         const mimeTypes = {
@@ -470,37 +470,46 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 使用智谱 AI 的 chat.completions API
+        // 使用 Qwen3-ASR-Flash 模型
         const requestBody = {
-            model: 'glm-asr',
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            type: 'audio',
-                            audio: {
-                                data: `data:${mimeType};base64,${audioBase64}`
+            model: 'qwen3-asr-flash',
+            input: {
+                messages: [
+                    {
+                        role: 'system',
+                        content: [
+                            { text: '' }
+                        ]
+                    },
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                audio: `data:${mimeType};base64,${audioBase64}`
                             }
-                        }
-                    ]
+                        ]
+                    }
+                ]
+            },
+            parameters: {
+                asr_options: {
+                    enable_itn: true
                 }
-            ],
-            stream: false
+            }
         };
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
-        console.log('Using model: glm-asr (Zhipu AI)');
+        console.log('Using model: qwen3-asr-flash (Alibaba DashScope)');
 
         const options = {
-            hostname: 'open.bigmodel.cn',
+            hostname: 'dashscope.aliyuncs.com',
             port: 443,
-            path: '/api/paas/v4/chat/completions',
+            path: '/api/v1/services/aigc/multimodal-generation/generation',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${ZHIPU_API_KEY}`,
+                'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
                 'Content-Length': Buffer.byteLength(postData)
             },
             timeout: 30000
@@ -516,20 +525,24 @@ function callQwenASR(audioBase64, format) {
                 try {
                     const result = JSON.parse(data);
 
-                    // 智谱 AI 返回格式
-                    if (result.choices && result.choices[0] && result.choices[0].message) {
-                        const content = result.choices[0].message.content;
+                    // Qwen3-ASR 返回格式
+                    if (result.output && result.output.choices && result.output.choices[0]) {
+                        const message = result.output.choices[0].message;
+                        let text = '';
+
+                        if (message.content) {
+                            if (Array.isArray(message.content)) {
+                                text = message.content.map(c => c.text || '').join('');
+                            } else if (typeof message.content === 'string') {
+                                text = message.content;
+                            }
+                        }
+
                         resolve({
-                            text: content.trim(),
+                            text: text.trim(),
                             success: true
                         });
-                    } else if (result.error) {
-                        resolve({
-                            text: '',
-                            success: false,
-                            error: result.error.message || result.error
-                        });
-                    } else if (result.code) {
+                    } else if (result.code || result.message) {
                         resolve({
                             text: '',
                             success: false,
@@ -707,6 +720,6 @@ function callQwenText(systemPrompt, userContent) {
 
 app.listen(PORT, () => {
     console.log(`🎤 VoiceNotes server running on port ${PORT}`);
-    console.log(`🤖 Using GLM-ASR (Zhipu AI) for speech recognition`);
-    console.log(`🔑 Zhipu API Key: ${ZHIPU_API_KEY ? 'Configured' : 'NOT CONFIGURED'}`);
+    console.log(`🤖 Using Qwen3-ASR-Flash (Alibaba DashScope) for speech recognition`);
+    console.log(`🔑 DashScope API Key: ${DASHSCOPE_API_KEY ? 'Configured' : 'NOT CONFIGURED'}`);
 });
