@@ -120,7 +120,21 @@ export async function getAllNotes() {
  * 根据 ID 获取单个笔记
  */
 export async function getNoteById(id) {
-    const notes = await getAllNotes();
+    const response = await authFetch(`/api/notes`);
+    const result = await response.json();
+
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to get notes');
+    }
+
+    // 转换字段名并查找匹配的笔记
+    const notes = result.notes.map(note => ({
+        id: note.id,
+        content: note.content,
+        createdAt: note.created_at,
+        updatedAt: note.updated_at
+    }));
+
     return notes.find(note => note.id === id) || null;
 }
 
