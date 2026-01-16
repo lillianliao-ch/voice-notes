@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
+const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY || '564493d8934944cc898bc699b8be112d.I9LUGyqHsZ2l0v21';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'voicenotes123';
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const TOKEN_EXPIRY_DAYS = 30;
@@ -455,7 +456,8 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Qwen Audio Turbo ASR 调用 (切换自 qwen-audio-asr 以使用不同配额)
+// 智谱 AI GLM-ASR 语音识别调用
+// 文档: https://docs.bigmodel.cn/cn/guide/models/sound-and-video/glm-asr-2512
 function callQwenASR(audioBase64, format) {
     return new Promise((resolve, reject) => {
         const mimeTypes = {
@@ -467,36 +469,25 @@ function callQwenASR(audioBase64, format) {
         };
         const mimeType = mimeTypes[format] || 'audio/mpeg';
 
-        // 尝试使用 qwen-audio-asr，如果失败可能是权限问题
-        // 已知可用模型：fun-asr, paraformer-v1, paraformer-v2
+        // 使用智谱 AI GLM-ASR 模型
         const requestBody = {
-            model: 'paraformer-v1',
-            input: {
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                audio: `data:${mimeType};base64,${audioBase64}`
-                            }
-                        ]
-                    }
-                ]
-            }
+            model: 'glm-asr',
+            audio: `data:${mimeType};base64,${audioBase64}`,
+            format: format
         };
 
         const postData = JSON.stringify(requestBody);
         console.log('Request body size:', postData.length);
-        console.log('Using model: paraformer-v1');
+        console.log('Using model: glm-asr (Zhipu AI)');
 
         const options = {
-            hostname: 'dashscope.aliyuncs.com',
+            hostname: 'open.bigmodel.cn',
             port: 443,
-            path: '/api/v1/services/aigc/multimodal-generation/generation',
+            path: '/api/paas/v4/audio/transcriptions',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
+                'Authorization': `Bearer ${ZHIPU_API_KEY}`,
                 'Content-Length': Buffer.byteLength(postData)
             },
             timeout: 30000
@@ -512,27 +503,19 @@ function callQwenASR(audioBase64, format) {
                 try {
                     const result = JSON.parse(data);
 
-                    if (result.output && result.output.choices && result.output.choices[0]) {
-                        const content = result.output.choices[0].message.content;
-                        let text = '';
-                        if (Array.isArray(content)) {
-                            text = content.map(c => c.text || '').join('');
-                        } else if (typeof content === 'string') {
-                            text = content;
-                        }
-                        // 去掉模型可能添加的前缀
-                        text = text.replace(/^这段音频的原始内容是[:：]\s*/gi, '')
-                            .replace(/^这段语音的原始内容是[:：]\s*/gi, '')
-                            .replace(/^语音转写的内容是[:：]\s*/gi, '')
-                            .replace(/^语音转写[:：]\s*/gi, '')
-                            .replace(/^语音内容[:：]\s*/i, '')
-                            .replace(/^['"'](.*)['"']$/s, '$1')
-                            .trim();
+                    // 智谱 AI 返回格式
+                    if (result.text) {
                         resolve({
-                            text: text.trim(),
+                            text: result.text.trim(),
                             success: true
                         });
-                    } else if (result.code || result.message) {
+                    } else if (result.error) {
+                        resolve({
+                            text: '',
+                            success: false,
+                            error: result.error.message || result.error
+                        });
+                    } else if (result.code) {
                         resolve({
                             text: '',
                             success: false,
@@ -710,5 +693,6 @@ function callQwenText(systemPrompt, userContent) {
 
 app.listen(PORT, () => {
     console.log(`🎤 VoiceNotes server running on port ${PORT}`);
-    console.log(`📦 DashScope API Key: ${DASHSCOPE_API_KEY ? 'Configured' : 'NOT CONFIGURED'}`);
+    console.log(`🤖 Using GLM-ASR (Zhipu AI) for speech recognition`);
+    console.log(`🔑 Zhipu API Key: ${ZHIPU_API_KEY ? 'Configured' : 'NOT CONFIGURED'}`);
 });
