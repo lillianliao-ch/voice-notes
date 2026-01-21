@@ -709,6 +709,12 @@ body {
     background: rgba(16, 185, 129, 0.1);
 }
 
+.optimize-btn:hover {
+    border-color: #F59E0B;
+    color: #F59E0B;
+    background: rgba(245, 158, 11, 0.1);
+}
+
 /* Summary Section */
 .summary-section {
     margin-top: 24px;

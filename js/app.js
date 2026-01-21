@@ -196,6 +196,7 @@ class VoiceNotesApp {
             iosTextarea: document.getElementById('ios-textarea'),
             iosCancel: document.getElementById('ios-cancel'),
             iosSave: document.getElementById('ios-save'),
+            optimizeBtn: document.getElementById('optimize-btn'),
             summarizeBtn: document.getElementById('summarize-btn'),
             summarySection: document.getElementById('summary-section'),
             summaryContent: document.getElementById('summary-content'),
@@ -281,6 +282,11 @@ class VoiceNotesApp {
         this.elements.deleteDialog.addEventListener('click', (e) => {
             if (e.target === this.elements.deleteDialog) this.hideDeleteDialog();
         });
+
+        // 去口语按钮
+        if (this.elements.optimizeBtn) {
+            this.elements.optimizeBtn.addEventListener('click', () => this.optimizeText());
+        }
 
         // 生成纪要按钮
         if (this.elements.summarizeBtn) {
@@ -459,6 +465,60 @@ class VoiceNotesApp {
             this.elements.summarySection.classList.add('hidden');
         }
         await this.loadNotes();
+    }
+
+    async optimizeText() {
+        if (!this.currentNoteId) return;
+
+        const content = this.elements.noteContent.innerText.trim();
+        if (!content) {
+            alert('笔记内容为空');
+            return;
+        }
+
+        const btn = this.elements.optimizeBtn;
+        const originalText = btn.querySelector('span').textContent;
+
+        try {
+            // 显示加载状态
+            btn.classList.add('loading');
+            btn.querySelector('span').textContent = '优化中...';
+
+            const response = await fetch('/api/optimize-text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    text: content,
+                    mode: 'remove-filler'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.text) {
+                // 更新笔记内容
+                await updateNote(this.currentNoteId, result.text);
+
+                // 刷新显示
+                const note = await getNoteById(this.currentNoteId);
+                if (note) {
+                    this.elements.noteContent.innerHTML = this.formatNoteContent(note.content);
+                }
+
+                // 显示成功提示
+                this.showSaveToast();
+            } else {
+                alert('文本优化失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('Optimize text failed:', error);
+            alert('文本优化失败，请重试');
+        } finally {
+            btn.classList.remove('loading');
+            btn.querySelector('span').textContent = originalText;
+        }
     }
 
     async generateSummary() {
